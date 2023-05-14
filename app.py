@@ -27,11 +27,74 @@ def index():
     return Markup(c.render_embed())
 
 
-@app.route("/spider", methods=['POST'])
-def spider():
+@app.route("/process", methods=['POST'])
+def process():
     project = request.form['project']
     version = request.form['version']
     web_address = request.form['web-address']
+    folder_path = spider(project, version, web_address)
+    remove_citation(folder_path)
+    format(folder_path)
+    analyze(folder_path)
+    return "success"
+
+
+def analyze(folder_path):
+    for filename in os.listdir(folder_path):
+        if not filename.startswith("FORMAT"):
+            continue
+        file_path = os.path.join(folder_path, filename)
+        if os.path.isfile(file_path):
+            os.system('java -jar SentiStrength.jar input ' + file_path)
+
+
+def remove_citation(folder_path):
+    for filename in os.listdir(folder_path):
+        if filename == '.DS_Store':
+            continue
+        file_path = os.path.join(folder_path, filename)
+        if os.path.isfile(file_path):
+            with open(file_path, 'r+') as file:
+                lines = file.readlines()
+                pred_line = 'ANOTHER_TEXT_BEGIN'
+                del_lines = []
+                for index, line in enumerate(lines):
+                    if line.startswith('>') and pred_line == 'ANOTHER_TEXT_BEGIN\n':
+                        del_lines.append(index)
+                    pred_line = line
+                for del_index in del_lines:
+                    del lines[del_index]
+                file.seek(0)
+                file.truncate(0)
+                file.writelines(lines)
+                file.close()
+
+def format(folder_path):
+    for filename in os.listdir(folder_path):
+        if filename == '.DS_Store':
+            continue
+        file_path = os.path.join(folder_path, filename)
+        if os.path.isfile(file_path):
+            with open(file_path, 'r+') as file:
+                lines = file.readlines()
+                new_file_name = "FORMAT" + filename
+                new_file_path = os.path.join(folder_path, new_file_name)
+                new_line = ""
+                with open(new_file_path, 'w') as new_file:
+                    for index, line in enumerate(lines):
+                        if index <= 9:
+                            continue
+                        if line == 'ANOTHER_TEXT_BEGIN\n':
+                            new_file.write(new_line)
+                            new_file.write("\r\n")
+                            new_line = ""
+                        else:
+                            new_line = new_line + line.replace("\n", " ").replace("\r", " ")
+                    new_file.close()
+                file.close()
+
+
+def spider(project, version, web_address):
     headers = {
         'Authorization': 'token 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',
         'Accept': 'application/vnd.github.v3+json'
@@ -118,7 +181,7 @@ def spider():
                     f.write('\r\nANOTHER_TEXT_BEGIN\r\n')
                 f.close()
         page = page + 1
-    return "success"
+    return file_saved_path
 
 
 if __name__ == "__main__":
