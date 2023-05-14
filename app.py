@@ -1,3 +1,5 @@
+import os.path
+
 from flask import Flask, request
 from markupsafe import Markup
 import requests
@@ -31,7 +33,7 @@ def spider():
     version = request.form['version']
     web_address = request.form['web-address']
     headers = {
-        'Authorization': 'token YOUR_TOKEN',
+        'Authorization': 'token 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',
         'Accept': 'application/vnd.github.v3+json'
     }
     params = {
@@ -39,18 +41,21 @@ def spider():
         "state": "all"
     }
     api_url = web_address + '?'
-    if start_spider(headers, params, api_url, project):
-        return "success"
-    else:
-        return "failure"
 
+    version = version.replace('/', ':')
 
-def start_spider(headers, params, api_url, project):
+    if not os.path.exists('./data'):
+        os.mkdir('./data')
+    if not os.path.exists('./data/' + project):
+        os.mkdir('./data/' + project)
+    if not os.path.exists('./data/' + project + '/' + version):
+        os.mkdir('./data/' + project + '/' + version)
+    file_saved_path = './data/' + project + '/' + version
+
     page = 1
     while True:
         response = requests.get(api_url + f'&per_page=100&page={page}', params=params, headers=headers)
         issues = response.json()
-        print(issues)
         if not issues:
             break
         for issue in issues:
@@ -74,11 +79,12 @@ def start_spider(headers, params, api_url, project):
                 pull_request = False
             user_info = issue['user']
             user = user_info['login']
-            with open('./data/superset_' + index + '.txt', 'w') as f:
+
+            with open(file_saved_path + '/' + project + '_' + index + '.txt', 'w') as f:
                 f.write('ISSUE_INFO\r\n')
                 f.write(project)
                 f.write('\r\n')
-                f.write(params['version'])
+                f.write(params['labels'])
                 f.write('\r\n')
                 f.write(index)
                 f.write('\r\n')
@@ -88,7 +94,7 @@ def start_spider(headers, params, api_url, project):
                 f.write('\r\n')
                 f.write(str(closed_at))
                 f.write('\r\n')
-                if (pull_request):
+                if pull_request:
                     f.write('pull_request')
                     f.write('\r\n')
                 else:
@@ -112,6 +118,7 @@ def start_spider(headers, params, api_url, project):
                     f.write('\r\nANOTHER_TEXT_BEGIN\r\n')
                 f.close()
         page = page + 1
+    return "success"
 
 
 if __name__ == "__main__":
