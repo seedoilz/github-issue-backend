@@ -3,7 +3,9 @@ import os.path
 from flask import Flask, request
 from markupsafe import Markup
 import requests
-
+import datetime
+import pymysql
+import pandas as pd
 from pyecharts import options as opts
 from pyecharts.charts import Bar
 
@@ -35,8 +37,107 @@ def process():
     folder_path = spider(project, version, web_address)
     remove_citation(folder_path)
     format(folder_path)
+    print(folder_path)
     analyze(folder_path)
+    pass_to_database(folder_path, project)
     return "success"
+
+
+def pass_to_database(folder_path, project):
+    db = pymysql.connect(host='localhost',
+                         user='root',
+                         password='Czy026110',
+                         database='homework')
+    cursor = db.cursor()
+    cursor.execute(f"SHOW TABLES LIKE '{'project_' + project}'")
+    table_exists = cursor.fetchone() is not None
+    if not table_exists:
+        sql = "CREATE TABLE project_" + project + " (issue_number INT NOT NULL,internal_issue_number INT NOT NULL," \
+                                                  "username VARCHAR(255) NOT NULL," \
+                                                  "created_at DATETIME NOT NULL," \
+                                                  "ended_at DATETIME," \
+                                                  "is_pull_request TINYINT(1) NOT NULL," \
+                                                  "labels VARCHAR(255)," \
+                                                  "project_name VARCHAR(255) NOT NULL," \
+                                                  "version_number VARCHAR(255)," \
+                                                  "content TEXT," \
+                                                  "positive_score INT," \
+                                                  "negative_score INT," \
+                                                  "PRIMARY KEY (issue_number,internal_issue_number))"
+        cursor.execute(sql)
+    sql = "INSERT INTO project_" + project + " (issue_number, internal_issue_number, " \
+                                             "username, created_at, ended_at, " \
+                                             "is_pull_request, labels, " \
+                                             "project_name, version_number, " \
+                                             "content, positive_score, negative_score) " \
+                                             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+    # %%
+    for filename in os.listdir(folder_path):
+        if filename == '.DS_Store':
+            continue
+        if filename.startswith('FORMAT'):
+            continue
+        file_path = os.path.join(folder_path, filename)
+        project_name = ''
+        version_number = ''
+        issue_number = ''
+        created_at = ''
+        ended_at = ''
+        is_pull_request = -1
+        labels = ''
+        if os.path.isfile(file_path):
+            with open(file_path, 'r') as file:
+                lines = file.readlines()
+                project_name = lines[1].replace('\r', '').replace('\n', '')
+                version_number = lines[2].replace('\r', '').replace('\n', '')
+                issue_number = lines[3].replace('\r', '').replace('\n', '')
+                usernames = [lines[4].replace('\r', '').replace('\n', '')]
+                append_name = False
+                for index, line in enumerate(lines):
+                    if line == 'COMMENT_INFO\n':
+                        append_name = True
+                        continue
+                    if append_name:
+                        usernames.append(line.replace('\r', '').replace('\n', ''))
+                        append_name = False
+                created_at = lines[5].replace('\r', '').replace('\n', '')
+                cdt = datetime.datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
+                cdate = cdt.date()
+                ctime = cdt.time()
+                created_at = str(cdate) + ' ' + str(ctime)
+                ended_at = lines[6].replace('\r', '').replace('\n', '')
+                if ended_at != 'None':
+                    edt = datetime.datetime.strptime(ended_at, "%Y-%m-%dT%H:%M:%SZ")
+                    edate = edt.date()
+                    etime = edt.time()
+                    ended_at = str(edate) + ' ' + str(etime)
+                if lines[7].replace('\r', '').replace('\n', '') == 'not_pull_request':
+                    is_pull_request = 0
+                else:
+                    is_pull_request = 1
+                labels = lines[8].replace('\r', '').replace('\n', '')
+                file.close()
+
+        result_filename = 'FORMAT' + filename.replace('.txt', '') + '0_out.txt'
+        result_file_path = os.path.join(folder_path, result_filename)
+        if os.path.isfile(result_file_path):
+            df = pd.read_csv(result_file_path, sep='\t', header=None, skiprows=[0])
+            df.columns = ['Positive', 'Negative', 'Text']
+            for index, row in df.iterrows():
+                positive_score = row['Positive']
+                negative_score = row['Negative']
+                content = row['Text']
+                internal_issue_number = index
+                try:
+                    cursor.execute(sql, (
+                    issue_number, internal_issue_number, usernames[index], created_at, ended_at, is_pull_request,
+                    labels, project_name, version_number, content, positive_score, negative_score))
+                    db.commit()
+                except:
+                    db.rollback()
+    db.close()
+    return True
+
 
 
 def analyze(folder_path):
