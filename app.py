@@ -56,10 +56,10 @@ def remove_citation(folder_path):
         if os.path.isfile(file_path):
             with open(file_path, 'r+') as file:
                 lines = file.readlines()
-                pred_line = 'ANOTHER_TEXT_BEGIN'
+                pred_line = 'BEGIN_ISSUE'
                 del_lines = []
                 for index, line in enumerate(lines):
-                    if line.startswith('>') and pred_line == 'ANOTHER_TEXT_BEGIN\n':
+                    if line.startswith('>') and pred_line == 'BEGIN_COMMENT\n':
                         del_lines.append(index)
                     pred_line = line
                 for del_index in del_lines:
@@ -69,25 +69,40 @@ def remove_citation(folder_path):
                 file.writelines(lines)
                 file.close()
 
+
 def format(folder_path):
     for filename in os.listdir(folder_path):
         if filename == '.DS_Store':
             continue
         file_path = os.path.join(folder_path, filename)
+        if filename.startswith('FORMAT'):
+            continue
         if os.path.isfile(file_path):
             with open(file_path, 'r+') as file:
                 lines = file.readlines()
                 new_file_name = "FORMAT" + filename
                 new_file_path = os.path.join(folder_path, new_file_name)
                 new_line = ""
+                skip = False
                 with open(new_file_path, 'w') as new_file:
                     for index, line in enumerate(lines):
                         if index <= 9:
                             continue
-                        if line == 'ANOTHER_TEXT_BEGIN\n':
+                        if skip:
+                            if line == 'BEGIN_COMMENT\n':
+                                skip = False
+                                continue
+                            else:
+                                continue
+                        if line == 'COMMENT_INFO\n':
                             new_file.write(new_line)
                             new_file.write("\r\n")
                             new_line = ""
+                            skip = True
+                        elif index == len(lines) - 1:
+                            new_line = new_line + line.replace("\n", " ").replace("\r", " ")
+                            new_file.write(new_line)
+                            new_file.write("\r\n")
                         else:
                             new_line = new_line + line.replace("\n", " ").replace("\r", " ")
                     new_file.close()
@@ -142,12 +157,11 @@ def spider(project, version, web_address):
                 pull_request = False
             user_info = issue['user']
             user = user_info['login']
-
             with open(file_saved_path + '/' + project + '_' + index + '.txt', 'w') as f:
                 f.write('ISSUE_INFO\r\n')
                 f.write(project)
                 f.write('\r\n')
-                f.write(params['labels'])
+                f.write(version)
                 f.write('\r\n')
                 f.write(index)
                 f.write('\r\n')
@@ -157,7 +171,7 @@ def spider(project, version, web_address):
                 f.write('\r\n')
                 f.write(str(closed_at))
                 f.write('\r\n')
-                if pull_request:
+                if (pull_request):
                     f.write('pull_request')
                     f.write('\r\n')
                 else:
@@ -168,7 +182,7 @@ def spider(project, version, web_address):
                 f.write('\r\n')
                 f.write('BEGIN_ISSUE\r\n')
                 f.write(issue['body'])
-                f.write('\r\nANOTHER_TEXT_BEGIN\r\n')
+                f.write('\r\n')
                 comments_url = issue['comments_url']
                 response = requests.get(comments_url, headers=headers)
                 comments = response.json()
@@ -177,8 +191,15 @@ def spider(project, version, web_address):
                         continue
                     if comment == 'message' or comment == 'documentation_url':
                         continue
+                    f.write('COMMENT_INFO')
+                    f.write('\r\n')
+                    f.write(comment['user']['login'])
+                    f.write('\r\n')
+                    f.write(str(created_at))
+                    f.write('\r\n')
+                    f.write('BEGIN_COMMENT\r\n')
                     f.write(comment['body'])
-                    f.write('\r\nANOTHER_TEXT_BEGIN\r\n')
+                    f.write('\r\n')
                 f.close()
         page = page + 1
     return file_saved_path
