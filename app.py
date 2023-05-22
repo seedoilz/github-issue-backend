@@ -1,6 +1,6 @@
 import os.path
 
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from markupsafe import Markup
 import requests
 import datetime
@@ -31,16 +31,66 @@ def index():
 
 @app.route("/process", methods=['POST'])
 def process():
-    project = request.form['project']
-    version = request.form['version']
-    web_address = request.form['web-address']
-    folder_path = spider(project, version, web_address)
-    remove_citation(folder_path)
-    format(folder_path)
-    print(folder_path)
-    analyze(folder_path)
-    pass_to_database(folder_path, project)
-    return "success"
+    try:
+        project = request.form['project']
+        version = request.form['version']
+        web_address = request.form['web-address']
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "获取表单数据出错",
+            "detail": str(e)
+        }), 400
+
+    try:
+        folder_path = spider(project, version, web_address)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "爬虫处理出错",
+            "detail": str(e)
+        }), 400
+
+    try:
+        remove_citation(folder_path)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "删除引用出错",
+            "detail": str(e)
+        }), 400
+
+    try:
+        format(folder_path)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "格式化出错",
+            "detail": str(e)
+        }), 400
+
+    try:
+        analyze(folder_path)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "分析出错",
+            "detail": str(e)
+        }), 400
+
+    try:
+        pass_to_database(folder_path, project)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "存储到数据库出错",
+            "detail": str(e)
+        }), 400
+
+    return jsonify({
+        "status": "success",
+        "message": "处理成功"
+    }), 200
 
 
 def pass_to_database(folder_path, project):
@@ -130,14 +180,13 @@ def pass_to_database(folder_path, project):
                 internal_issue_number = index
                 try:
                     cursor.execute(sql, (
-                    issue_number, internal_issue_number, usernames[index], created_at, ended_at, is_pull_request,
-                    labels, project_name, version_number, content, positive_score, negative_score))
+                        issue_number, internal_issue_number, usernames[index], created_at, ended_at, is_pull_request,
+                        labels, project_name, version_number, content, positive_score, negative_score))
                     db.commit()
-                except:
+                except Exception as e:
                     db.rollback()
+                    raise e
     db.close()
-    return True
-
 
 
 def analyze(folder_path):
