@@ -261,7 +261,8 @@ def format_files(folder_path):
 
 def spider(project, version, web_address):
     headers = {
-        'Authorization': 'token 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',
+        'Authorization': 'token '
+                         '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',
         'Accept': 'application/vnd.github.v3+json'
     }
     params = {
@@ -321,7 +322,7 @@ def spider(project, version, web_address):
                 f.write('\r\n')
                 f.write(str(closed_at))
                 f.write('\r\n')
-                if (pull_request):
+                if pull_request:
                     f.write('pull_request')
                     f.write('\r\n')
                 else:
