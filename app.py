@@ -61,7 +61,7 @@ def process():
         }), 400
 
     try:
-        format(folder_path)
+        format_files(folder_path)
     except Exception as e:
         return jsonify({
             "status": "error",
@@ -121,7 +121,7 @@ def pass_to_database(folder_path, project):
                                              "project_name, version_number, " \
                                              "content, positive_score, negative_score) " \
                                              "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-    # %%
+
     for filename in os.listdir(folder_path):
         if filename == '.DS_Store':
             continue
@@ -220,7 +220,7 @@ def remove_citation(folder_path):
                 file.close()
 
 
-def format(folder_path):
+def format_files(folder_path):
     for filename in os.listdir(folder_path):
         if filename == '.DS_Store':
             continue
