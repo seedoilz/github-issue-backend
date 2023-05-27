@@ -1,4 +1,5 @@
 import os.path
+import re
 
 from flask import Flask, request, jsonify
 from markupsafe import Markup
@@ -77,7 +78,7 @@ def process():
             "message": "分析出错",
             "detail": str(e)
         }), 400
-
+    # folder_path = './data/superset/v1.5'
     try:
         pass_to_database(folder_path, project)
     except Exception as e:
@@ -94,28 +95,32 @@ def process():
 
 
 def pass_to_database(folder_path, project):
-    db = pymysql.connect(host='localhost',
+    # db = pymysql.connect(host='localhost',
+    #                      user='root',
+    #                      password='Czy026110',
+    #                      database='homework')
+    db = pymysql.connect(host='124.70.198.102',
                          user='root',
-                         password='Czy026110',
-                         database='homework')
+                         password='HaRdEsTnju@123',
+                         database='sentistrength')
     cursor = db.cursor()
-    cursor.execute(f"SHOW TABLES LIKE '{'project_' + project}'")
-    table_exists = cursor.fetchone() is not None
-    if not table_exists:
-        sql = "CREATE TABLE project_" + project + " (issue_number INT NOT NULL,internal_issue_number INT NOT NULL," \
-                                                  "username VARCHAR(255) NOT NULL," \
-                                                  "created_at DATETIME NOT NULL," \
-                                                  "ended_at DATETIME," \
-                                                  "is_pull_request TINYINT(1) NOT NULL," \
-                                                  "labels VARCHAR(255)," \
-                                                  "project_name VARCHAR(255) NOT NULL," \
-                                                  "version_number VARCHAR(255)," \
-                                                  "content TEXT," \
-                                                  "positive_score INT," \
-                                                  "negative_score INT," \
-                                                  "PRIMARY KEY (issue_number,internal_issue_number))"
-        cursor.execute(sql)
-    sql = "INSERT INTO project_" + project + " (issue_number, internal_issue_number, " \
+    # cursor.execute(f"SHOW TABLES LIKE '{'project_' + project}'")
+    # table_exists = cursor.fetchone() is not None
+    # if not table_exists:
+    #     sql = "CREATE TABLE project_" + project + " (issue_number INT NOT NULL,internal_issue_number INT NOT NULL," \
+    #                                               "username VARCHAR(255) NOT NULL," \
+    #                                               "created_at DATETIME NOT NULL," \
+    #                                               "ended_at DATETIME," \
+    #                                               "is_pull_request TINYINT(1) NOT NULL," \
+    #                                               "labels VARCHAR(255)," \
+    #                                               "project_name VARCHAR(255) NOT NULL," \
+    #                                               "version_number VARCHAR(255)," \
+    #                                               "content TEXT," \
+    #                                               "positive_score INT," \
+    #                                               "negative_score INT," \
+    #                                               "PRIMARY KEY (issue_number,internal_issue_number))"
+    #     cursor.execute(sql)
+    sql = "INSERT IGNORE INTO data" + " (issue_number, internal_issue_number, " \
                                              "username, created_at, ended_at, " \
                                              "is_pull_request, labels, " \
                                              "project_name, version_number, " \
@@ -136,7 +141,7 @@ def pass_to_database(folder_path, project):
         is_pull_request = -1
         labels = ''
         if os.path.isfile(file_path):
-            with open(file_path, 'r') as file:
+            with open(file_path, 'r', encoding='utf-8') as file:
                 lines = file.readlines()
                 project_name = lines[1].replace('\r', '').replace('\n', '')
                 version_number = lines[2].replace('\r', '').replace('\n', '')
@@ -161,6 +166,8 @@ def pass_to_database(folder_path, project):
                     edate = edt.date()
                     etime = edt.time()
                     ended_at = str(edate) + ' ' + str(etime)
+                else:
+                    ended_at = None
                 if lines[7].replace('\r', '').replace('\n', '') == 'not_pull_request':
                     is_pull_request = 0
                 else:
@@ -177,7 +184,9 @@ def pass_to_database(folder_path, project):
                 positive_score = row['Positive']
                 negative_score = row['Negative']
                 content = row['Text']
+                content = remove_emoji(content)
                 internal_issue_number = index
+                # print(content)
                 try:
                     cursor.execute(sql, (
                         issue_number, internal_issue_number, usernames[index], created_at, ended_at, is_pull_request,
@@ -204,7 +213,7 @@ def remove_citation(folder_path):
             continue
         file_path = os.path.join(folder_path, filename)
         if os.path.isfile(file_path):
-            with open(file_path, 'r+') as file:
+            with open(file_path, 'r+', encoding='utf-8') as file:
                 lines = file.readlines()
                 pred_line = 'BEGIN_ISSUE'
                 del_lines = []
@@ -228,13 +237,13 @@ def format_files(folder_path):
         if filename.startswith('FORMAT'):
             continue
         if os.path.isfile(file_path):
-            with open(file_path, 'r+') as file:
+            with open(file_path, 'r+', encoding='utf-8') as file:
                 lines = file.readlines()
                 new_file_name = "FORMAT" + filename
                 new_file_path = os.path.join(folder_path, new_file_name)
                 new_line = ""
                 skip = False
-                with open(new_file_path, 'w') as new_file:
+                with open(new_file_path, 'w', encoding='utf-8') as new_file:
                     for index, line in enumerate(lines):
                         if index <= 9:
                             continue
@@ -308,7 +317,7 @@ def spider(project, version, web_address):
                 pull_request = False
             user_info = issue['user']
             user = user_info['login']
-            with open(file_saved_path + '/' + project + '_' + index + '.txt', 'w') as f:
+            with open(file_saved_path + '/' + project + '_' + index + '.txt', 'w', encoding='utf-8') as f:
                 f.write('ISSUE_INFO\r\n')
                 f.write(project)
                 f.write('\r\n')
@@ -356,5 +365,16 @@ def spider(project, version, web_address):
     return file_saved_path
 
 
+def remove_emoji(string):
+    emoji_pattern = re.compile("["
+                               u"\U0001F600-\U0001F64F"  # emoticons
+                               u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+                               u"\U0001F680-\U0001F6FF"  # transport & map symbols
+                               u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+                               u"\U00002702-\U000027B0"
+                               u"\U000024C2-\U0001F251"
+                               "]+", flags=re.UNICODE)
+    return emoji_pattern.sub(r'', string)
+
 if __name__ == "__main__":
-    app.run()
+    app.run(host="0.0.0.0", port=5000,debug=True)
