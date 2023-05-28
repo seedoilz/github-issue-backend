@@ -43,44 +43,44 @@ def process():
             "detail": str(e)
         }), 400
 
+    # try:
+    #     folder_path = spider(project, version, web_address)
+    # except Exception as e:
+    #     return jsonify({
+    #         "status": "error",
+    #         "message": "爬虫处理出错",
+    #         "detail": str(e)
+    #     }), 400
+    #
+    # try:
+    #     remove_citation(folder_path)
+    # except Exception as e:
+    #     return jsonify({
+    #         "status": "error",
+    #         "message": "删除引用出错",
+    #         "detail": str(e)
+    #     }), 400
+    #
+    # try:
+    #     format_files(folder_path)
+    # except Exception as e:
+    #     return jsonify({
+    #         "status": "error",
+    #         "message": "格式化出错",
+    #         "detail": str(e)
+    #     }), 400
+    #
+    # try:
+    #     analyze(folder_path)
+    # except Exception as e:
+    #     return jsonify({
+    #         "status": "error",
+    #         "message": "分析出错",
+    #         "detail": str(e)
+    #     }), 400
+    folder_path = './data/superset/v0.28'
     try:
-        folder_path = spider(project, version, web_address)
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": "爬虫处理出错",
-            "detail": str(e)
-        }), 400
-
-    try:
-        remove_citation(folder_path)
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": "删除引用出错",
-            "detail": str(e)
-        }), 400
-
-    try:
-        format_files(folder_path)
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": "格式化出错",
-            "detail": str(e)
-        }), 400
-
-    try:
-        analyze(folder_path)
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": "分析出错",
-            "detail": str(e)
-        }), 400
-    # folder_path = './data/superset/v1.5'
-    try:
-        pass_to_database(folder_path, project)
+        pass_to_database(folder_path, project, version)
     except Exception as e:
         return jsonify({
             "status": "error",
@@ -94,7 +94,8 @@ def process():
     }), 200
 
 
-def pass_to_database(folder_path, project):
+def pass_to_database(folder_path, project, version):
+    # 连接数据库
     # db = pymysql.connect(host='localhost',
     #                      user='root',
     #                      password='Czy026110',
@@ -195,6 +196,24 @@ def pass_to_database(folder_path, project):
                 except Exception as e:
                     db.rollback()
                     raise e
+
+    # collection table
+    collection_name = project + '_' + version
+    collection_sql = "INSERT IGNORE INTO collection " + "(name) VALUE (%s)"
+    cursor.execute(collection_sql, collection_name)
+    db.commit()
+
+    # data_id sql
+    collection_id_sql = "SELECT id FROM collection WHERE name = \'" + collection_name + "\'"
+    cursor.execute(collection_id_sql)
+    collection_id = cursor.fetchone()
+    data_id_sql = "SELECT id FROM data WHERE version_number = \'" + version + "\'" + " and project_name = \'" + project + "\'"
+    cursor.execute(data_id_sql)
+    data_id_list = cursor.fetchall()
+    collection_data_sql = "INSERT IGNORE INTO collection_data " + "(collection_id, data_id) VALUES " + "(%s, %s)"
+    for data_id in list(data_id_list):
+        cursor.execute(collection_data_sql, (collection_id, data_id))
+    db.commit()
     db.close()
 
 
