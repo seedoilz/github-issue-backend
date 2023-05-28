@@ -43,42 +43,42 @@ def process():
             "detail": str(e)
         }), 400
 
-    # try:
-    #     folder_path = spider(project, version, web_address)
-    # except Exception as e:
-    #     return jsonify({
-    #         "status": "error",
-    #         "message": "爬虫处理出错",
-    #         "detail": str(e)
-    #     }), 400
-    #
-    # try:
-    #     remove_citation(folder_path)
-    # except Exception as e:
-    #     return jsonify({
-    #         "status": "error",
-    #         "message": "删除引用出错",
-    #         "detail": str(e)
-    #     }), 400
-    #
-    # try:
-    #     format_files(folder_path)
-    # except Exception as e:
-    #     return jsonify({
-    #         "status": "error",
-    #         "message": "格式化出错",
-    #         "detail": str(e)
-    #     }), 400
-    #
-    # try:
-    #     analyze(folder_path)
-    # except Exception as e:
-    #     return jsonify({
-    #         "status": "error",
-    #         "message": "分析出错",
-    #         "detail": str(e)
-    #     }), 400
-    folder_path = './data/superset/v0.28'
+    try:
+        folder_path = spider(project, version, web_address)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "爬虫处理出错",
+            "detail": str(e)
+        }), 400
+
+    try:
+        remove_citation(folder_path)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "删除引用出错",
+            "detail": str(e)
+        }), 400
+
+    try:
+        format_files(folder_path)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "格式化出错",
+            "detail": str(e)
+        }), 400
+
+    try:
+        analyze(folder_path)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": "分析出错",
+            "detail": str(e)
+        }), 400
+    # folder_path = './data/superset/v0.28'
     try:
         pass_to_database(folder_path, project, version)
     except Exception as e:
