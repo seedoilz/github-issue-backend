@@ -13,23 +13,6 @@ from pyecharts.charts import Bar
 app = Flask(__name__, static_folder="templates")
 
 
-def bar_base() -> Bar:
-    c = (
-        Bar()
-        .add_xaxis(["衬衫", "羊毛衫", "雪纺衫", "裤子", "高跟鞋", "袜子"])
-        .add_yaxis("商家A", [5, 20, 36, 10, 75, 90])
-        .add_yaxis("商家B", [15, 25, 16, 55, 48, 8])
-        .set_global_opts(title_opts=opts.TitleOpts(title="Bar-基本示例", subtitle="我是副标题"))
-    )
-    return c
-
-
-@app.route("/")
-def index():
-    c = bar_base()
-    return Markup(c.render_embed())
-
-
 @app.route("/process", methods=['POST'])
 def process():
     try:
@@ -122,11 +105,11 @@ def pass_to_database(folder_path, project, version):
     #                                               "PRIMARY KEY (issue_number,internal_issue_number))"
     #     cursor.execute(sql)
     sql = "INSERT IGNORE INTO data" + " (issue_number, internal_issue_number, " \
-                                             "username, created_at, ended_at, " \
-                                             "is_pull_request, labels, " \
-                                             "project_name, version_number, " \
-                                             "content, positive_score, negative_score) " \
-                                             "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                                      "username, created_at, ended_at, " \
+                                      "is_pull_request, labels, " \
+                                      "project_name, version_number, " \
+                                      "content, positive_score, negative_score) " \
+                                      "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
 
     for filename in os.listdir(folder_path):
         if filename == '.DS_Store':
@@ -228,6 +211,7 @@ def analyze(folder_path):
 
 def remove_citation(folder_path):
     for filename in os.listdir(folder_path):
+        print(filename)
         if filename == '.DS_Store':
             continue
         file_path = os.path.join(folder_path, filename)
@@ -237,10 +221,10 @@ def remove_citation(folder_path):
                 pred_line = 'BEGIN_ISSUE'
                 del_lines = []
                 for index, line in enumerate(lines):
-                    if line.startswith('>') and pred_line == 'BEGIN_COMMENT\n':
+                    if line.startswith('> ') and pred_line == 'BEGIN_COMMENT\n':
                         del_lines.append(index)
                     pred_line = line
-                for del_index in del_lines:
+                for del_index in sorted(del_lines, reverse=True):
                     del lines[del_index]
                 file.seek(0)
                 file.truncate(0)
@@ -395,5 +379,6 @@ def remove_emoji(string):
                                "]+", flags=re.UNICODE)
     return emoji_pattern.sub(r'', string)
 
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000,debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
