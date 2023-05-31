@@ -15,8 +15,8 @@ app = Flask(__name__, static_folder="templates")
 
 @app.route("/weight", methods=['POST'])
 def word_weight():
-    project = 'kafka'
-    version = 'docs'
+    project = request.form['project']
+    version = request.form['version']
     # db = pymysql.connect(host='localhost',
     #                      user='root',
     #                      password='Czy026110',
