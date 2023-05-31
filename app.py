@@ -2,15 +2,60 @@ import os.path
 import re
 
 from flask import Flask, request, jsonify
-from markupsafe import Markup
+from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
 import requests
 import datetime
 import pymysql
 import pandas as pd
-from pyecharts import options as opts
-from pyecharts.charts import Bar
+import nltk
 
 app = Flask(__name__, static_folder="templates")
+
+
+@app.route("/weight", methods=['POST'])
+def word_weight():
+    project = 'kafka'
+    version = 'docs'
+    # db = pymysql.connect(host='localhost',
+    #                      user='root',
+    #                      password='Czy026110',
+    #                      database='homework')
+    db = pymysql.connect(host='124.70.198.102',
+                         user='root',
+                         password='HaRdEsTnju@123',
+                         database='sentistrength')
+    cursor = db.cursor()
+
+    select_content_sql = "SELECT content FROM data WHERE version_number = \'" + version + "\'" + " and project_name = \'" + project + "\'"
+    cursor.execute(select_content_sql)
+    content_list = cursor.fetchall()
+    content_results = [row[0] for row in content_list]
+
+    combined_content = [' '.join(content_results)]
+    vectorizer = TfidfVectorizer()
+    tfidf = vectorizer.fit_transform(combined_content)
+    feature_names = vectorizer.get_feature_names_out()
+
+    tfidf_array = tfidf.toarray()
+    top_n_idx = np.argsort(tfidf_array[0])[-100:]
+    top_n_values = [tfidf_array[0][i] for i in top_n_idx]
+    top_n_words = [feature_names[i] for i in top_n_idx]
+
+    word_dict = dict(zip(top_n_words, top_n_values))
+
+    nltk.download('averaged_perceptron_tagger')
+    nltk.download('nps_chat')
+    nltk_data = nltk.corpus.nps_chat.tagged_words()
+    nouns = [word.lower() for (word, tag) in nltk_data if tag.startswith('N')]
+    for key in list(word_dict.keys()):
+        if key not in nouns:
+            # 删除键及其对应的值
+            del word_dict[key]
+        else:
+            word_dict[key] = int(word_dict[key] * 100 // 1)
+    print(word_dict)
+    return word_dict
 
 
 @app.route("/process", methods=['POST'])
@@ -188,7 +233,7 @@ def pass_to_database(folder_path, project, version):
 
     # data_id sql
     if '\'' in collection_name:
-        collection_name = collection_name.replace('\'','\\\'')
+        collection_name = collection_name.replace('\'', '\\\'')
     if '\'' in version:
         version = version_number.replace('\'', '\\\'')
     collection_id_sql = "SELECT id FROM collection WHERE name = \'" + collection_name + "\'"

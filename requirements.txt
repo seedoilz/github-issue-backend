@@ -110,3 +110,9 @@ zipp @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_8cv5z
 
 flask~=2.2.2
 markupsafe~=2.1.1
+numpy~=1.24.3
+requests~=2.29.0
+pymysql~=1.0.2
+nltk~=3.8.1
+scikit-learn~=1.2.2
+wordcloud~=1.9.2
