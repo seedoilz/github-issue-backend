@@ -25,7 +25,7 @@ def process():
             "message": "获取表单数据出错",
             "detail": str(e)
         }), 400
-
+    folder_path = './data/' + project + '/' + version
     try:
         folder_path = spider(project, version, web_address)
     except Exception as e:
@@ -61,7 +61,7 @@ def process():
             "message": "分析出错",
             "detail": str(e)
         }), 400
-    # folder_path = './data/superset/v0.28'
+
     try:
         pass_to_database(folder_path, project, version)
     except Exception as e:
@@ -79,10 +79,10 @@ def process():
 
 def pass_to_database(folder_path, project, version):
     # 连接数据库
-    # db = pymysql.connect(host='localhost',
-    #                      user='root',
-    #                      password='Czy026110',
-    #                      database='homework')
+    db = pymysql.connect(host='localhost',
+                         user='root',
+                         password='Czy026110',
+                         database='homework')
     db = pymysql.connect(host='124.70.198.102',
                          user='root',
                          password='HaRdEsTnju@123',
@@ -187,6 +187,10 @@ def pass_to_database(folder_path, project, version):
     db.commit()
 
     # data_id sql
+    if '\'' in collection_name:
+        collection_name = collection_name.replace('\'','\\\'')
+    if '\'' in version:
+        version = version_number.replace('\'', '\\\'')
     collection_id_sql = "SELECT id FROM collection WHERE name = \'" + collection_name + "\'"
     cursor.execute(collection_id_sql)
     collection_id = cursor.fetchone()
