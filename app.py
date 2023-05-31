@@ -1,7 +1,7 @@
 import os.path
 import re
-
 from flask import Flask, request, jsonify
+from flask_cors import cross_origin
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 import requests
@@ -11,8 +11,11 @@ import pandas as pd
 import nltk
 
 app = Flask(__name__, static_folder="templates")
+nltk.download('averaged_perceptron_tagger')
+nltk.download('nps_chat')
 
 
+@cross_origin()
 @app.route("/weight", methods=['POST'])
 def word_weight():
     project = request.form['project']
@@ -44,8 +47,6 @@ def word_weight():
 
     word_dict = dict(zip(top_n_words, top_n_values))
 
-    nltk.download('averaged_perceptron_tagger')
-    nltk.download('nps_chat')
     nltk_data = nltk.corpus.nps_chat.tagged_words()
     nouns = [word.lower() for (word, tag) in nltk_data if tag.startswith('N')]
     for key in list(word_dict.keys()):
@@ -58,6 +59,7 @@ def word_weight():
     return word_dict
 
 
+@cross_origin()
 @app.route("/process", methods=['POST'])
 def process():
     try:
