@@ -49,14 +49,20 @@ def word_weight():
 
     nltk_data = nltk.corpus.nps_chat.tagged_words()
     nouns = [word.lower() for (word, tag) in nltk_data if tag.startswith('N')]
+    res_list = []
     for key in list(word_dict.keys()):
         if key not in nouns:
             # 删除键及其对应的值
             del word_dict[key]
         else:
             word_dict[key] = int(word_dict[key] * 100 // 1)
-    print(word_dict)
-    return word_dict
+            temp = {'name': key, 'value': word_dict[key]}
+            res_list.append(temp)
+    return jsonify({
+        "status": "success",
+        "message": "success",
+        "data": res_list
+    })
 
 
 @cross_origin()
@@ -69,7 +75,7 @@ def process():
     except Exception as e:
         return jsonify({
             "status": "error",
-            "message": "获取表单数据出错",
+            "message": "form data error",
             "detail": str(e)
         }), 400
     folder_path = './data/' + project + '/' + version
@@ -78,7 +84,7 @@ def process():
     except Exception as e:
         return jsonify({
             "status": "error",
-            "message": "爬虫处理出错",
+            "message": "spider error",
             "detail": str(e)
         }), 400
 
@@ -87,7 +93,7 @@ def process():
     except Exception as e:
         return jsonify({
             "status": "error",
-            "message": "删除引用出错",
+            "message": "remove citation error",
             "detail": str(e)
         }), 400
 
@@ -96,7 +102,7 @@ def process():
     except Exception as e:
         return jsonify({
             "status": "error",
-            "message": "格式化出错",
+            "message": "format error",
             "detail": str(e)
         }), 400
 
@@ -105,7 +111,7 @@ def process():
     except Exception as e:
         return jsonify({
             "status": "error",
-            "message": "分析出错",
+            "message": "analyze error",
             "detail": str(e)
         }), 400
 
@@ -114,13 +120,13 @@ def process():
     except Exception as e:
         return jsonify({
             "status": "error",
-            "message": "存储到数据库出错",
+            "message": "database error",
             "detail": str(e)
         }), 400
 
     return jsonify({
         "status": "success",
-        "message": "处理成功"
+        "message": "dealing success"
     }), 200
 
 
