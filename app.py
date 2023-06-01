@@ -2,6 +2,7 @@ import os.path
 import re
 from flask import Flask, request, jsonify
 from flask_cors import cross_origin
+from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 import requests
@@ -15,8 +16,8 @@ nltk.download('averaged_perceptron_tagger')
 nltk.download('nps_chat')
 
 
-@cross_origin()
 @app.route("/weight", methods=['POST'])
+@cross_origin()
 def word_weight():
     project = request.form['project']
     version = request.form['version']
@@ -41,7 +42,7 @@ def word_weight():
     feature_names = vectorizer.get_feature_names_out()
 
     tfidf_array = tfidf.toarray()
-    top_n_idx = np.argsort(tfidf_array[0])[-100:]
+    top_n_idx = np.argsort(tfidf_array[0])[-500:]
     top_n_values = [tfidf_array[0][i] for i in top_n_idx]
     top_n_words = [feature_names[i] for i in top_n_idx]
 
@@ -49,9 +50,10 @@ def word_weight():
 
     nltk_data = nltk.corpus.nps_chat.tagged_words()
     nouns = [word.lower() for (word, tag) in nltk_data if tag.startswith('N')]
+    sw_nltk = stopwords.words('english')
     res_list = []
     for key in list(word_dict.keys()):
-        if key not in nouns:
+        if key not in nouns or key in sw_nltk:
             # 删除键及其对应的值
             del word_dict[key]
         else:
@@ -65,8 +67,8 @@ def word_weight():
     })
 
 
-@cross_origin()
 @app.route("/process", methods=['POST'])
+@cross_origin()
 def process():
     try:
         project = request.form['project']
