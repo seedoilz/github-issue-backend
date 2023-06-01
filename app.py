@@ -12,9 +12,11 @@ import pandas as pd
 import nltk
 
 app = Flask(__name__, static_folder="templates")
-nltk.download('averaged_perceptron_tagger')
-nltk.download('nps_chat')
 
+
+# nltk.download('averaged_perceptron_tagger')
+# nltk.download('nps_chat')
+# nltk.download('stopwords')
 
 @app.route("/weight", methods=['POST'])
 @cross_origin()
@@ -30,41 +32,83 @@ def word_weight():
                          password='HaRdEsTnju@123',
                          database='sentistrength')
     cursor = db.cursor()
+    project_name = project + '_' + version
+    if version == '':
+        project_name = project
 
-    select_content_sql = "SELECT content FROM data WHERE version_number = \'" + version + "\'" + " and project_name = \'" + project + "\'"
-    cursor.execute(select_content_sql)
-    content_list = cursor.fetchall()
-    content_results = [row[0] for row in content_list]
+    exist_sql = "SELECT weight_id from collection_weight WHERE collection_id = (SELECT id from collection WHERE name = %s)"
+    cursor.execute(exist_sql, (project_name,))
+    result = cursor.fetchall()
+    if len(result) == 0:
+        cursor.execute('SELECT id from collection WHERE name = %s', (project_name))
+        collection_id = cursor.fetchone()[0]
+        select_id_sql = "SELECT data_id from collection_data WHERE collection_id = (SELECT id from collection WHERE name = %s)"
+        cursor.execute(select_id_sql, (project_name,))
+        ids = cursor.fetchall()
+        id_list = [row[0] for row in ids]
+        select_content_sql = "SELECT content FROM data WHERE id IN ({})".format(','.join(['%s'] * len(id_list)))
+        cursor.execute(select_content_sql, id_list)
+        content_list = cursor.fetchall()
+        content_results = [row[0] for row in content_list]
 
-    combined_content = [' '.join(content_results)]
-    vectorizer = TfidfVectorizer()
-    tfidf = vectorizer.fit_transform(combined_content)
-    feature_names = vectorizer.get_feature_names_out()
+        combined_content = [' '.join(content_results)]
+        vectorizer = TfidfVectorizer()
+        tfidf = vectorizer.fit_transform(combined_content)
+        feature_names = vectorizer.get_feature_names_out()
 
-    tfidf_array = tfidf.toarray()
-    top_n_idx = np.argsort(tfidf_array[0])[-500:]
-    top_n_values = [tfidf_array[0][i] for i in top_n_idx]
-    top_n_words = [feature_names[i] for i in top_n_idx]
+        tfidf_array = tfidf.toarray()
+        top_n_idx = np.argsort(tfidf_array[0])[-500:]
+        top_n_values = [tfidf_array[0][i] for i in top_n_idx]
+        top_n_words = [feature_names[i] for i in top_n_idx]
 
-    word_dict = dict(zip(top_n_words, top_n_values))
+        word_dict = dict(zip(top_n_words, top_n_values))
 
-    nltk_data = nltk.corpus.nps_chat.tagged_words()
-    nouns = [word.lower() for (word, tag) in nltk_data if tag.startswith('N')]
-    sw_nltk = stopwords.words('english')
-    res_list = []
-    for key in list(word_dict.keys()):
-        if key not in nouns or key in sw_nltk:
-            # 删除键及其对应的值
-            del word_dict[key]
-        else:
-            word_dict[key] = int(word_dict[key] * 100 // 1)
-            temp = {'name': key, 'value': word_dict[key]}
+        nltk_data = nltk.corpus.nps_chat.tagged_words()
+        nouns = [word.lower() for (word, tag) in nltk_data if tag.startswith('N')]
+        sw_nltk = stopwords.words('english')
+        res_list = []
+        for key in list(word_dict.keys()):
+            if key not in nouns or key in sw_nltk or key == 'comment' or key == 'comments' or key.isnumeric():
+                # 删除键及其对应的值
+                del word_dict[key]
+            else:
+                word_dict[key] = int(word_dict[key] * 10000 // 1)
+                temp = {'name': key, 'value': word_dict[key]}
+                res_list.append(temp)
+
+        weight_insert_sql = "INSERT IGNORE INTO weight (collection_id, name, weight) VALUES (%s, %s, %s)"
+        collection_weight_insert_sql = "INSERT IGNORE INTO collection_weight (collection_id, weight_id) VALUES (%s, %s)"
+        weight_select_sql = "SELECT id FROM weight WHERE collection_id = %s"
+        for res in res_list:
+            cursor.execute(weight_insert_sql, (collection_id, res['name'], res['value']))
+        db.commit()
+
+        cursor.execute(weight_select_sql, collection_id)
+        weight_ids_list = cursor.fetchall()
+        for weight_id in list(weight_ids_list):
+            cursor.execute(collection_weight_insert_sql, (collection_id, weight_id))
+        db.commit()
+        return jsonify({
+            "status": "success",
+            "message": "success",
+            "data": res_list
+        })
+    else:
+        weight_id_list = [row[0] for row in result]
+        select_weight_sql = "SELECT name, weight FROM weight WHERE id IN ({})".format(
+            ','.join(['%s'] * len(weight_id_list)))
+        cursor.execute(select_weight_sql, weight_id_list)
+        ret_list = cursor.fetchall()
+        res_list = []
+        for item in ret_list:
+            temp = {'name': item[0], 'value': item[1]}
             res_list.append(temp)
-    return jsonify({
-        "status": "success",
-        "message": "success",
-        "data": res_list
-    })
+        print("through database")
+        return jsonify({
+            "status": "success",
+            "message": "success",
+            "data": res_list
+        })
 
 
 @app.route("/process", methods=['POST'])
