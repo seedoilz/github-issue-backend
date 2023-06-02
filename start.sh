@@ -9,7 +9,7 @@ else
 echo "项目未启动，直接启动"
 echo "--------------------"
 fi
-nohup python3 /home/data-visualization/app.py
+nohup python3 ./app.py
 check_pid=`ps aux | grep "app.py" | grep -v grep | awk 'END{print $2}'`
   if [ $check_pid  > 0 ];then
         echo "项目启动成功： pid = : $check_pid  "
