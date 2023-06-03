@@ -376,8 +376,6 @@ def format_files(folder_path):
 
 def spider(project, version, web_address):
     headers = {
-        'Authorization': 'token '
-                         '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',
         'Accept': 'application/vnd.github.v3+json'
     }
     params = {
