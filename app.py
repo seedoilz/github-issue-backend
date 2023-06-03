@@ -178,10 +178,10 @@ def process():
 
 def pass_to_database(folder_path, project, version):
     # 连接数据库
-    db = pymysql.connect(host='localhost',
-                         user='root',
-                         password='Czy026110',
-                         database='homework')
+    # db = pymysql.connect(host='localhost',
+    #                      user='root',
+    #                      password='Czy026110',
+    #                      database='homework')
     db = pymysql.connect(host='124.70.198.102',
                          user='root',
                          password='HaRdEsTnju@123',
